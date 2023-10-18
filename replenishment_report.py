@@ -37,8 +37,9 @@ class ReplenishmentReport:
         self.past = self.outflow_predicter.past
         self.future = self.outflow_predicter.future
         self.inventory_levels = pd.read_csv(csv_path_inventory_levels)
+        self._predict_out_of_stock_dates()
 
-    def predict_out_of_stock_dates(self) -> None:
+    def _predict_out_of_stock_dates(self) -> None:
         """
         This method calculates the predicted out of stock dates for each SKU with predicted future sales.
         It also calculates the days left until out of stock for each SKU with predicted future sales.
@@ -62,6 +63,9 @@ class ReplenishmentReport:
         """
         This method calculates proposed replenishment quantities for each SKU based on predicted future sales
         and a date unitl the stock should not go out of stock.
+
+        Args:
+            replenish_until_date (str): Date until the stock should not go out of stock
         """
 
         self.replenischment_quantities = pd.Series(dtype="float64")
@@ -76,14 +80,3 @@ class ReplenishmentReport:
                 if date >= pd.to_datetime(replenish_until_date):
                     self.replenischment_quantities[sku] = -inventory_level
                     break
-
-
-if __name__ == "__main__":
-    rr = ReplenishmentReport("order_items.csv", "inventory_levels.csv", 21, 360)
-    rr.predict_out_of_stock_dates()
-    rr.propose_replenishment_quantities(
-        pd.to_datetime("today") + pd.DateOffset(days=180)
-    )
-    print(rr.out_of_stock_dates)
-    print(rr.days_left)
-    print(rr.replenischment_quantities)

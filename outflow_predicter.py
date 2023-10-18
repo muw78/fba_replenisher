@@ -103,11 +103,3 @@ class OutflowPredicter:
         for sku in self.past.columns:
             forecaster.fit(self.past[sku])
             self.future[sku] = forecaster.predict(self.future.index).astype(float)
-
-
-if __name__ == "__main__":
-    outflow_predicter = OutflowPredicter("order_items.csv")
-    outflow_predicter.prepare_past(7)
-    outflow_predicter.predict_future(14)
-    print(outflow_predicter.past)
-    print(outflow_predicter.future)

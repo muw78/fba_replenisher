@@ -1,4 +1,6 @@
 __pycache__/
 creds.py
 web_app.py
+test.py
 *.csv
+*.ipynb

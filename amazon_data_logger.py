@@ -8,13 +8,6 @@ from sp_api.api import Orders, Inventories
 from sp_api.base import Marketplaces
 from sp_api.base.exceptions import SellingApiRequestThrottledException
 
-from creds import CREDS_SPAPI
-
-CSV_PATH_ORDER_ITEMS = "order_items.csv"
-CSV_PATH_INVENTORY_LEVELS = "inventory_levels.csv"
-MARKETPLACE = Marketplaces.DE
-SYNC_DAYS_BACK = 30
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
@@ -25,7 +18,7 @@ class AmazonDataLogger:
 
     Args:
         creds_spapi (dict): Dictionary containing the credentials for the SP API
-        marketplace (Marketplaces): The Amazon marketplace to log data from
+        marketplace (str): The Amazon marketplace to log data from as country code
         csv_path_order_items (str): Path to the csv file to store the order items
         csv_path_inventory_levels (str): Path to the csv file to store the current inventory levels
 
@@ -40,13 +33,16 @@ class AmazonDataLogger:
     def __init__(
         self,
         creds_spapi: dict,
-        marketplace: Marketplaces,
+        marketplace: str,
         csv_path_order_items: str,
         csv_path_inventory_levels: str,
     ) -> None:
-        self.orders_client = Orders(credentials=creds_spapi, marketplace=marketplace)
+        self.marketplace = getattr(Marketplaces, marketplace)
+        self.orders_client = Orders(
+            credentials=creds_spapi, marketplace=self.marketplace
+        )
         self.inventories_client = Inventories(
-            credentials=creds_spapi, marketplace=marketplace
+            credentials=creds_spapi, marketplace=self.marketplace
         )
         self.csv_path_order_items = csv_path_order_items
         self.csv_path_inventory_levels = csv_path_inventory_levels
@@ -147,7 +143,7 @@ class AmazonDataLogger:
     def request_order_items_from_spapi(self, order_id: str) -> list:
         """
         Request order items for a given order id from the SP API. If the request is throttled,
-        sleep for 2 seconds and try again.
+        sleep for 5 seconds and try again.
 
         Args:
             order_id (str): The AmazonOrderId to request order items for
@@ -162,7 +158,7 @@ class AmazonDataLogger:
                 return self.orders_client.get_order_items(order_id=order_id)
             except SellingApiRequestThrottledException as e:
                 logging.exception(f"Exception: {e} \n --> Sleeping for 2 seconds")
-                sleep(2)
+                sleep(5)
 
     def get_order_items(self, orders: list) -> list:
         """
@@ -210,6 +206,7 @@ class AmazonDataLogger:
         Args:
             days_back (int): Number of days back in time to request orders from
         """
+
         orders = self.get_recent_orders(days_back)
         csv_order_ids = set(
             [order_item["AmazonOrderId"] for order_item in self.order_items]
@@ -258,15 +255,3 @@ class AmazonDataLogger:
             writer = csv.DictWriter(f, fieldnames=inventory[0].keys())
             writer.writeheader()
             writer.writerows(inventory)
-
-
-if __name__ == "__main__":
-    amazon_data_logger = AmazonDataLogger(
-        creds_spapi=CREDS_SPAPI,
-        marketplace=MARKETPLACE,
-        csv_path_order_items=CSV_PATH_ORDER_ITEMS,
-        csv_path_inventory_levels=CSV_PATH_INVENTORY_LEVELS,
-    )
-
-    amazon_data_logger.collect_order_items(days_back=7)
-    inventory = amazon_data_logger.collect_invetory_levels()
